@@ -756,15 +756,17 @@
         // ============================================
         // ЗАМЕНИТЕ ЭТУ КОНФИГУРАЦИЮ НА СВОЮ ИЗ FIREBASE CONSOLE
         const firebaseConfig = {
-            apiKey: "AIzaSyDgxJ6mRbT1jgt9jXYVaQ6Qtc6gUX_AeqE",
-            authDomain: "chores-tracker-a88de.firebaseapp.com",
-            databaseURL: "https://chores-tracker-a88de-default-rtdb.firebaseio.com",
-            projectId: "chores-tracker-a88de",
-            storageBucket: "chores-tracker-a88de.firebasestorage.app",
-            messagingSenderId: "951210208706",
-            appId: "1:951210208706:web:b17a52b75f172bb4b6fa5b",
-            measurementId: "G-KWWXBBESY7"        
+            // ВСТАВЬТЕ ВАШУ КОНФИГУРАЦИЮ СЮДА
+            // Пример:
+            // apiKey: "AIzaSyC...",
+            // authDomain: "your-app.firebaseapp.com",
+            // databaseURL: "https://your-app-default-rtdb.firebaseio.com",
+            // projectId: "your-app",
+            // storageBucket: "your-app.appspot.com",
+            // messagingSenderId: "123456789",
+            // appId: "1:123456789:web:abc123..."
         };
+
         // Проверка конфигурации
         let database = null;
         let isFirebaseConfigured = false;
@@ -780,8 +782,8 @@
             }
         } catch (error) {
             console.error('Firebase ошибка:', error);
-            updateFirebaseStatus('disconnected', '⚠️ Firebase не настроен');
-            document.getElementById('setupNotice').style.display = 'block';
+            updateFirebaseStatus('disconnected', '💾 Работает локально (без синхронизации)');
+            // Не показываем уведомление о настройке, так как работает локально
         }
 
         function updateFirebaseStatus(status, text) {
@@ -814,24 +816,58 @@
         ];
 
         // ============================================
-        // FIREBASE ФУНКЦИИ
+        // FIREBASE ФУНКЦИИ С FALLBACK НА LOCALSTORAGE
         // ============================================
         function saveToFirebase(path, data) {
+            // Сохраняем в localStorage как запасной вариант
+            try {
+                localStorage.setItem(path, JSON.stringify(data));
+            } catch (e) {
+                console.error('localStorage error:', e);
+            }
+            
+            // Если Firebase настроен - сохраняем и туда
             if (!isFirebaseConfigured) {
-                console.log('Firebase не настроен, данные не сохранены');
                 return Promise.resolve();
             }
             return database.ref(path).set(data);
         }
 
-        function loadFromFirebase(path) {
-            if (!isFirebaseConfigured) {
-                return Promise.resolve(null);
+        async function loadFromFirebase(path) {
+            // Пытаемся загрузить из Firebase
+            if (isFirebaseConfigured) {
+                try {
+                    const snapshot = await database.ref(path).once('value');
+                    const firebaseData = snapshot.val();
+                    if (firebaseData) {
+                        // Сохраняем в localStorage для кэша
+                        localStorage.setItem(path, JSON.stringify(firebaseData));
+                        return firebaseData;
+                    }
+                } catch (e) {
+                    console.error('Firebase load error:', e);
+                }
             }
-            return database.ref(path).once('value').then(snapshot => snapshot.val());
+            
+            // Fallback на localStorage
+            try {
+                const localData = localStorage.getItem(path);
+                return localData ? JSON.parse(localData) : null;
+            } catch (e) {
+                console.error('localStorage load error:', e);
+                return null;
+            }
         }
 
         function deleteFromFirebase(path) {
+            // Удаляем из localStorage
+            try {
+                localStorage.removeItem(path);
+            } catch (e) {
+                console.error('localStorage error:', e);
+            }
+            
+            // Если Firebase настроен - удаляем и оттуда
             if (!isFirebaseConfigured) {
                 return Promise.resolve();
             }
@@ -1997,492 +2033,5 @@
 
     <div class="celebration" id="celebration"></div>
 
-    <script>
-        const children = ['Вероника', 'Максим'];
-        const daysOfWeek = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-        const daysShort = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
-        
-        let currentChild = children[0];
-        let currentDay = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1; // 0 = Понедельник
-        let childrenData = {};
-        let masterChoresList = [];
-
-        const defaultChores = [
-            { id: 1, title: 'Убрать свою комнату', icon: '🛏️', points: 10, description: 'Застелить кровать, убрать игрушки, пропылесосить', days: [0,1,2,3,4,5,6], mandatory: false },
-            { id: 2, title: 'Помыть посуду', icon: '🍽️', points: 8, description: 'Помыть и высушить посуду после еды', days: [0,1,2,3,4,5,6], mandatory: false },
-            { id: 3, title: 'Вынести мусор', icon: '🗑️', points: 5, description: 'Собрать мусор и вынести в контейнер', days: [0,2,4,6], mandatory: false },
-            { id: 4, title: 'Полить цветы', icon: '🌱', points: 5, description: 'Полить все комнатные растения', days: [1,4], mandatory: false },
-            { id: 5, title: 'Помочь с готовкой', icon: '👨‍🍳', points: 12, description: 'Помочь приготовить обед или ужин', days: [0,1,2,3,4,5,6], mandatory: false },
-            { id: 6, title: 'Убрать в ванной', icon: '🚿', points: 10, description: 'Протереть раковину, зеркало, пол', days: [2,5], mandatory: false },
-            { id: 7, title: 'Погулять с собакой', icon: '🐕', points: 8, description: 'Вывести собаку на прогулку 30 минут', days: [0,1,2,3,4,5,6], mandatory: false },
-            { id: 8, title: 'Сделать уроки', icon: '📚', points: 15, description: 'Выполнить все домашние задания', days: [0,1,2,3,4], mandatory: true },
-        ];
-
-        // Инициализация данных
-        function initData() {
-            // Загрузка мастер-списка дел
-            const savedChores = localStorage.getItem('masterChoresList');
-            if (savedChores) {
-                masterChoresList = JSON.parse(savedChores);
-            } else {
-                masterChoresList = [...defaultChores];
-                saveMasterChoresList();
-            }
-            
-            const saved = localStorage.getItem('choresData');
-            if (saved) {
-                childrenData = JSON.parse(saved);
-            }
-            
-            // Убедимся, что все текущие дети есть в данных
-            children.forEach(child => {
-                if (!childrenData[child]) {
-                    childrenData[child] = {
-                        dailyData: {},
-                        totalPoints: 0
-                    };
-                }
-                
-                // Убедимся, что у ребенка есть dailyData
-                if (!childrenData[child].dailyData) {
-                    childrenData[child].dailyData = {};
-                }
-                
-                // Инициализация данных для каждого дня
-                for (let day = 0; day < 7; day++) {
-                    if (!childrenData[child].dailyData[day]) {
-                        childrenData[child].dailyData[day] = {
-                            chores: getChoresForDay(day),
-                            completedToday: 0
-                        };
-                    } else {
-                        // Обновляем список дел на основе мастер-списка
-                        childrenData[child].dailyData[day].chores = getChoresForDay(day);
-                    }
-                }
-            });
-            saveData();
-        }
-
-        function getChoresForDay(day) {
-            return masterChoresList
-                .filter(chore => chore.days.includes(day))
-                .map(c => ({ ...c, completed: false, completedToday: false }));
-        }
-
-        function saveMasterChoresList() {
-            localStorage.setItem('masterChoresList', JSON.stringify(masterChoresList));
-        }
-
-        function saveData() {
-            localStorage.setItem('choresData', JSON.stringify(childrenData));
-        }
-
-        function initDaySelector() {
-            const selector = document.getElementById('daySelector');
-            daysShort.forEach((day, index) => {
-                const btn = document.createElement('button');
-                btn.className = 'day-btn' + (index === currentDay ? ' active' : '');
-                btn.textContent = day;
-                btn.onclick = () => selectDay(index);
-                selector.appendChild(btn);
-            });
-        }
-
-        function selectDay(day) {
-            currentDay = day;
-            document.querySelectorAll('.day-btn').forEach((btn, index) => {
-                btn.classList.toggle('active', index === day);
-            });
-            renderChores();
-            updateStats();
-        }
-
-        function initChildSelector() {
-            const selector = document.getElementById('childSelector');
-            children.forEach((child, index) => {
-                const btn = document.createElement('button');
-                btn.className = 'child-btn' + (index === 0 ? ' active' : '');
-                btn.textContent = child;
-                btn.onclick = () => selectChild(child);
-                selector.appendChild(btn);
-            });
-        }
-
-        function selectChild(child) {
-            currentChild = child;
-            document.querySelectorAll('.child-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent === child);
-            });
-            renderChores();
-            updateStats();
-        }
-
-        function renderChores() {
-            const grid = document.getElementById('choresGrid');
-            grid.innerHTML = '';
-            
-            const data = childrenData[currentChild];
-            const dayData = data.dailyData[currentDay];
-            
-            if (!dayData || !dayData.chores || dayData.chores.length === 0) {
-                grid.innerHTML = '<p style="color: white; text-align: center; grid-column: 1/-1;">На сегодня дел нет 🎉</p>';
-                return;
-            }
-            
-            dayData.chores.forEach(chore => {
-                const card = document.createElement('div');
-                card.className = 'chore-card' + (chore.completed ? ' completed' : '') + (chore.mandatory ? ' mandatory' : '');
-                
-                card.innerHTML = `
-                    ${chore.mandatory ? '<div class="mandatory-badge">⚠️ ОБЯЗАТЕЛЬНО</div>' : ''}
-                    <div class="chore-header">
-                        <div class="chore-title">${chore.title}</div>
-                        <div class="chore-icon">${chore.icon}</div>
-                    </div>
-                    <div class="chore-points">+${chore.points} баллов</div>
-                    <div class="chore-description">${chore.description}</div>
-                    <div class="chore-actions">
-                        ${!chore.completed ? 
-                            `<button class="btn btn-complete" onclick="completeChore(${chore.id})">✅ Выполнено!</button>` :
-                            `<button class="btn btn-undo" onclick="undoChore(${chore.id})">↩️ Отменить</button>`
-                        }
-                    </div>
-                `;
-                
-                grid.appendChild(card);
-            });
-        }
-
-        function completeChore(choreId) {
-            const data = childrenData[currentChild];
-            const dayData = data.dailyData[currentDay];
-            const chore = dayData.chores.find(c => c.id === choreId);
-            
-            if (chore && !chore.completed) {
-                chore.completed = true;
-                chore.completedToday = true;
-                data.totalPoints += chore.points;
-                dayData.completedToday++;
-                
-                saveData();
-                renderChores();
-                updateStats();
-                showCelebration();
-            }
-        }
-
-        function undoChore(choreId) {
-            const data = childrenData[currentChild];
-            const dayData = data.dailyData[currentDay];
-            const chore = dayData.chores.find(c => c.id === choreId);
-            
-            if (chore && chore.completed) {
-                chore.completed = false;
-                if (chore.completedToday) {
-                    data.totalPoints -= chore.points;
-                    dayData.completedToday--;
-                    chore.completedToday = false;
-                }
-                
-                saveData();
-                renderChores();
-                updateStats();
-            }
-        }
-
-        function updateStats() {
-            const data = childrenData[currentChild];
-            const dayData = data.dailyData[currentDay];
-            
-            document.getElementById('completedToday').textContent = dayData.completedToday;
-            document.getElementById('totalPoints').textContent = data.totalPoints;
-            
-            // Расчет коэффициента
-            const totalChores = dayData.chores.length;
-            const completedChores = dayData.chores.filter(c => c.completed).length;
-            const mandatoryChores = dayData.chores.filter(c => c.mandatory);
-            const completedMandatory = mandatoryChores.filter(c => c.completed).length;
-            
-            const completionRate = totalChores > 0 ? completedChores / totalChores : 0;
-            
-            let coefficient = 1.0;
-            
-            // Штраф за невыполненные обязательные дела
-            if (mandatoryChores.length > 0) {
-                const mandatoryRate = completedMandatory / mandatoryChores.length;
-                if (mandatoryRate < 1.0) {
-                    coefficient = 0.5; // Сильный штраф
-                } else {
-                    // Бонус за выполнение всех обязательных + дополнительных
-                    if (completionRate >= 0.9) coefficient = 2.0;
-                    else if (completionRate >= 0.75) coefficient = 1.7;
-                    else if (completionRate >= 0.5) coefficient = 1.4;
-                    else if (completionRate >= 0.25) coefficient = 1.2;
-                }
-            } else {
-                // Если нет обязательных дел, обычная система
-                if (completionRate >= 0.9) coefficient = 2.0;
-                else if (completionRate >= 0.75) coefficient = 1.7;
-                else if (completionRate >= 0.5) coefficient = 1.4;
-                else if (completionRate >= 0.25) coefficient = 1.2;
-            }
-            
-            const coeffElement = document.getElementById('coefficient');
-            coeffElement.textContent = coefficient.toFixed(1) + 'x';
-            coeffElement.className = 'stat-value coefficient' + (coefficient < 1.0 ? ' low' : '');
-            
-            const progress = Math.round(completionRate * 100);
-            document.getElementById('weekProgress').textContent = progress + '%';
-            document.getElementById('weekProgressBar').style.width = progress + '%';
-            
-            saveData();
-        }
-
-        function showCelebration() {
-            const celebration = document.getElementById('celebration');
-            const emojis = ['🎉', '⭐', '🏆', '🎊', '✨', '🌟'];
-            celebration.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-            celebration.style.animation = 'none';
-            setTimeout(() => {
-                celebration.style.animation = 'celebrate 1s ease-out';
-            }, 10);
-        }
-
-        // Admin Panel
-        function openAdminModal() {
-            document.getElementById('adminModal').classList.add('active');
-            renderNewChoreDays();
-            renderAdminChoresList();
-        }
-
-        function closeAdminModal() {
-            document.getElementById('adminModal').classList.remove('active');
-        }
-
-        function renderNewChoreDays() {
-            const container = document.getElementById('newChoreDays');
-            container.innerHTML = '';
-            daysOfWeek.forEach((day, index) => {
-                const div = document.createElement('div');
-                div.className = 'day-checkbox';
-                div.innerHTML = `
-                    <input type="checkbox" id="day${index}" value="${index}" checked>
-                    <label for="day${index}">${daysShort[index]}</label>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function addNewChore() {
-            const title = document.getElementById('newChoreTitle').value.trim();
-            const description = document.getElementById('newChoreDescription').value.trim();
-            const icon = document.getElementById('newChoreIcon').value.trim() || '📝';
-            const points = parseInt(document.getElementById('newChorePoints').value) || 5;
-            const mandatory = document.getElementById('newChoreMandatory').checked;
-            
-            if (!title) {
-                alert('Введите название дела');
-                return;
-            }
-            
-            const selectedDays = [];
-            for (let i = 0; i < 7; i++) {
-                if (document.getElementById(`day${i}`).checked) {
-                    selectedDays.push(i);
-                }
-            }
-            
-            if (selectedDays.length === 0) {
-                alert('Выберите хотя бы один день');
-                return;
-            }
-            
-            const newChore = {
-                id: Date.now(),
-                title,
-                description,
-                icon,
-                points,
-                days: selectedDays,
-                mandatory
-            };
-            
-            masterChoresList.push(newChore);
-            saveMasterChoresList();
-            
-            // Обновить дела для всех детей
-            updateAllChildrenChores();
-            
-            // Очистить форму
-            document.getElementById('newChoreTitle').value = '';
-            document.getElementById('newChoreDescription').value = '';
-            document.getElementById('newChoreIcon').value = '';
-            document.getElementById('newChorePoints').value = '';
-            document.getElementById('newChoreMandatory').checked = false;
-            renderNewChoreDays();
-            
-            renderAdminChoresList();
-            renderChores();
-            updateStats();
-        }
-
-        function updateAllChildrenChores() {
-            children.forEach(child => {
-                for (let day = 0; day < 7; day++) {
-                    childrenData[child].dailyData[day].chores = getChoresForDay(day);
-                }
-            });
-            saveData();
-        }
-
-        function renderAdminChoresList() {
-            const container = document.getElementById('adminChoresList');
-            container.innerHTML = '<h3>Список всех дел</h3>';
-            
-            masterChoresList.forEach(chore => {
-                const div = document.createElement('div');
-                div.className = 'chore-list-item';
-                div.innerHTML = `
-                    <div class="chore-list-header">
-                        <div>
-                            <span style="font-size: 1.5em; margin-right: 10px;">${chore.icon}</span>
-                            <span class="chore-list-title">${chore.title}</span>
-                            ${chore.mandatory ? ' <span class="mandatory-badge">ОБЯЗАТЕЛЬНО</span>' : ''}
-                        </div>
-                        <div class="chore-list-actions">
-                            <button class="btn btn-delete btn-small" onclick="deleteChore(${chore.id})">🗑️</button>
-                        </div>
-                    </div>
-                    <div style="color: #666; margin-bottom: 5px;">${chore.description}</div>
-                    <div style="color: #667eea; font-weight: bold;">+${chore.points} баллов</div>
-                    <div style="color: #999; font-size: 0.9em; margin-top: 5px;">
-                        Дни: ${chore.days.map(d => daysShort[d]).join(', ')}
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function deleteChore(choreId) {
-            if (confirm('Удалить это дело из расписания?')) {
-                masterChoresList = masterChoresList.filter(c => c.id !== choreId);
-                saveMasterChoresList();
-                updateAllChildrenChores();
-                renderAdminChoresList();
-                renderChores();
-                updateStats();
-            }
-        }
-
-        // Payments
-        function openPaymentsModal() {
-            const modal = document.getElementById('paymentsModal');
-            const select = document.getElementById('paymentChild');
-            
-            select.innerHTML = '<option value="">Выберите ребенка</option>';
-            children.forEach(child => {
-                const option = document.createElement('option');
-                option.value = child;
-                option.textContent = child;
-                select.appendChild(option);
-            });
-            
-            modal.classList.add('active');
-            renderPayments();
-        }
-
-        function closePaymentsModal() {
-            document.getElementById('paymentsModal').classList.remove('active');
-        }
-
-        function addPayment() {
-            const child = document.getElementById('paymentChild').value;
-            const amount = document.getElementById('paymentAmount').value;
-            const note = document.getElementById('paymentNote').value;
-            
-            if (!child || !amount) {
-                alert('Пожалуйста, выберите ребенка и введите сумму');
-                return;
-            }
-            
-            const payments = JSON.parse(localStorage.getItem('payments') || '[]');
-            payments.unshift({
-                id: Date.now(),
-                child: child,
-                amount: parseFloat(amount),
-                note: note,
-                date: new Date().toLocaleString('ru-RU')
-            });
-            
-            localStorage.setItem('payments', JSON.stringify(payments));
-            
-            document.getElementById('paymentChild').value = '';
-            document.getElementById('paymentAmount').value = '';
-            document.getElementById('paymentNote').value = '';
-            
-            renderPayments();
-        }
-
-        function renderPayments() {
-            const payments = JSON.parse(localStorage.getItem('payments') || '[]');
-            const list = document.getElementById('paymentsList');
-            
-            if (payments.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: #999;">Выплаты еще не добавлены</p>';
-                return;
-            }
-            
-            list.innerHTML = payments.map(payment => `
-                <div class="payment-item">
-                    <div class="payment-info">
-                        <div class="payment-child">${payment.child}</div>
-                        <div class="payment-amount">${payment.amount} ₸</div>
-                        ${payment.note ? `<div style="color: #666; margin-top: 5px;">${payment.note}</div>` : ''}
-                        <div class="payment-date">${payment.date}</div>
-                    </div>
-                    <button class="btn btn-delete" onclick="deletePayment(${payment.id})">🗑️</button>
-                </div>
-            `).join('');
-        }
-
-        function deletePayment(id) {
-            if (confirm('Удалить эту выплату?')) {
-                const payments = JSON.parse(localStorage.getItem('payments') || '[]');
-                const filtered = payments.filter(p => p.id !== id);
-                localStorage.setItem('payments', JSON.stringify(filtered));
-                renderPayments();
-            }
-        }
-
-        // Сброс ежедневных заданий в полночь
-        function checkDailyReset() {
-            const lastReset = localStorage.getItem('lastReset');
-            const today = new Date().toDateString();
-            
-            if (lastReset !== today) {
-                children.forEach(child => {
-                    for (let day = 0; day < 7; day++) {
-                        const dayData = childrenData[child].dailyData[day];
-                        dayData.completedToday = 0;
-                        dayData.chores.forEach(chore => {
-                            chore.completed = false;
-                            chore.completedToday = false;
-                        });
-                    }
-                });
-                localStorage.setItem('lastReset', today);
-                saveData();
-            }
-        }
-
-        // Инициализация
-        initData();
-        initDaySelector();
-        initChildSelector();
-        checkDailyReset();
-        renderChores();
-        updateStats();
-    </script>
 </body>
 </html>
