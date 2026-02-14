@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика - Квесты по дому</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 2px solid white;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        .child-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .child-btn {
+            padding: 10px 20px;
+            border: 2px solid white;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .child-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .stats-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .stats-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .points-cell {
+            font-weight: bold;
+            color: #11998e;
+        }
+
+        .coefficient-cell {
+            font-weight: bold;
+        }
+
+        .coefficient-high {
+            color: #11998e;
+        }
+
+        .coefficient-medium {
+            color: #ffc107;
+        }
+
+        .coefficient-low {
+            color: #ff6b6b;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .summary-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .period-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .period-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .period-btn.active {
+            background: #764ba2;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-style: italic;
+        }
+
+        .week-header {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        .month-header {
+            background: #764ba2;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <a href="index_v2.html" class="back-btn">← Назад к делам</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>📊 Статистика</h1>
+            <p>Детальная аналитика по баллам и выплатам</p>
+        </div>
+
+        <div class="child-selector" id="childSelector"></div>
+
+        <div class="summary-cards" id="summaryCards"></div>
+
+        <div class="period-selector">
+            <button class="period-btn active" onclick="selectPeriod('daily')" id="btnDaily">По дням</button>
+            <button class="period-btn" onclick="selectPeriod('weekly')" id="btnWeekly">По неделям</button>
+            <button class="period-btn" onclick="selectPeriod('monthly')" id="btnMonthly">По месяцам</button>
+        </div>
+
+        <div class="stats-section" id="dailyStats"></div>
+        <div class="stats-section" id="weeklyStats"></div>
+        <div class="stats-section" id="monthlyStats"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Firebase конфигурация
+        const firebaseConfig = {
+            apiKey: "AIzaSyDgxJ6mRbT1jgt9jXYVaQ6Qtc6gUX_AeqE",
+            authDomain: "chores-tracker-a88de.firebaseapp.com",
+            databaseURL: "https://chores-tracker-a88de-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "chores-tracker-a88de",
+            storageBucket: "chores-tracker-a88de.firebasestorage.app",
+            messagingSenderId: "951210208706",
+            appId: "1:951210208706:web:b17a52b75f172bb4b6fa5b",
+            measurementId: "G-KWWXBBESY7"
+        };
+
+        let database = null;
+        let isFirebaseConfigured = false;
+
+        try {
+            if (firebaseConfig.apiKey) {
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                isFirebaseConfigured = true;
+            }
+        } catch (error) {
+            console.error('Firebase error:', error);
+        }
+
+        const children = ['Вероника', 'Максим'];
+        const daysOfWeek = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+        const daysShort = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+        let currentChild = children[0];
+        let childrenData = {};
+        let payments = [];
+        let currentPeriod = 'daily';
+
+        // Загрузка данных из Firebase
+        async function loadFromFirebase(path) {
+            if (!isFirebaseConfigured) {
+                try {
+                    const localData = localStorage.getItem(path);
+                    return localData ? JSON.parse(localData) : null;
+                } catch (e) {
+                    return null;
+                }
+            }
+            
+            try {
+                const snapshot = await database.ref(path).once('value');
+                const firebaseData = snapshot.val();
+                if (firebaseData) {
+                    localStorage.setItem(path, JSON.stringify(firebaseData));
+                    return firebaseData;
+                }
+            } catch (e) {
+                console.error('Firebase load error:', e);
+            }
+            
+            try {
+                const localData = localStorage.getItem(path);
+                return localData ? JSON.parse(localData) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getDateString(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            return `${day}.${month < 10 ? '0' + month : month}`;
+        }
+
+        function getDayOfWeek(dateStr) {
+            const date = new Date(dateStr);
+            return date.getDay() === 0 ? 6 : date.getDay() - 1;
+        }
+
+        function getWeekNumber(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+            const yearStart = new Date(d.getFullYear(), 0, 1);
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        function calculateCoefficient(dateData) {
+            if (!dateData || !dateData.chores || dateData.chores.length === 0) {
+                return 1.0;
+            }
+
+            const totalChores = dateData.chores.length;
+            const completedChores = dateData.chores.filter(c => c.completed).length;
+            const mandatoryChores = dateData.chores.filter(c => c.mandatory);
+            const completedMandatory = mandatoryChores.filter(c => c.completed).length;
+            
+            const completionRate = totalChores > 0 ? completedChores / totalChores : 0;
+            
+            let coefficient = 1.0;
+            
+            if (mandatoryChores.length > 0) {
+                const mandatoryRate = completedMandatory / mandatoryChores.length;
+                if (mandatoryRate < 1.0) {
+                    coefficient = 0.5;
+                } else {
+                    if (completionRate >= 0.9) coefficient = 1.5;
+                    else if (completionRate >= 0.75) coefficient = 1.4;
+                    else if (completionRate >= 0.5) coefficient = 1.3;
+                    else if (completionRate >= 0.25) coefficient = 1.1;
+                }
+            } else {
+                if (completionRate >= 0.9) coefficient = 1.5;
+                else if (completionRate >= 0.75) coefficient = 1.4;
+                else if (completionRate >= 0.5) coefficient = 1.3;
+                else if (completionRate >= 0.25) coefficient = 1.1;
+            }
+            
+            return coefficient;
+        }
+
+        function getCoefficientClass(coef) {
+            if (coef >= 1.3) return 'coefficient-high';
+            if (coef >= 1.0) return 'coefficient-medium';
+            return 'coefficient-low';
+        }
+
+        function initChildSelector() {
+            const selector = document.getElementById('childSelector');
+            children.forEach((child, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'child-btn' + (index === 0 ? ' active' : '');
+                btn.textContent = child;
+                btn.onclick = () => selectChild(child);
+                selector.appendChild(btn);
+            });
+        }
+
+        function selectChild(child) {
+            currentChild = child;
+            document.querySelectorAll('.child-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === child);
+            });
+            renderStats();
+        }
+
+        function selectPeriod(period) {
+            currentPeriod = period;
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('btn' + period.charAt(0).toUpperCase() + period.slice(1)).classList.add('active');
+            
+            document.getElementById('dailyStats').style.display = period === 'daily' ? 'block' : 'none';
+            document.getElementById('weeklyStats').style.display = period === 'weekly' ? 'block' : 'none';
+            document.getElementById('monthlyStats').style.display = period === 'monthly' ? 'block' : 'none';
+        }
+
+        function renderSummary() {
+            const data = childrenData[currentChild];
+            if (!data || !data.dateData) {
+                document.getElementById('summaryCards').innerHTML = '<div class="no-data">Нет данных</div>';
+                return;
+            }
+
+            let totalEarned = 0;
+            let totalPossible = 0;
+            let totalDays = 0;
+            let coefficientSum = 0;
+            let totalPayments = 0;
+
+            Object.keys(data.dateData).forEach(dateStr => {
+                const dateData = data.dateData[dateStr];
+                if (dateData && dateData.chores) {
+                    totalDays++;
+                    dateData.chores.forEach(chore => {
+                        totalPossible += chore.points;
+                        if (chore.completed || chore.completedToday) {
+                            totalEarned += chore.points;
+                        }
+                    });
+                    coefficientSum += calculateCoefficient(dateData);
+                }
+            });
+
+            payments.filter(p => p.child === currentChild).forEach(p => {
+                totalPayments += p.amount;
+            });
+
+            const avgCoefficient = totalDays > 0 ? coefficientSum / totalDays : 1.0;
+            const completionRate = totalPossible > 0 ? (totalEarned / totalPossible * 100) : 0;
+
+            const html = `
+                <div class="summary-card">
+                    <h3>Всего заработано</h3>
+                    <div class="value">${totalEarned}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Средний коэффициент</h3>
+                    <div class="value">${avgCoefficient.toFixed(2)}x</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Процент выполнения</h3>
+                    <div class="value">${completionRate.toFixed(0)}%</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Всего выплачено</h3>
+                    <div class="value">${totalPayments} ₸</div>
+                </div>
+            `;
+
+            document.getElementById('summaryCards').innerHTML = html;
+        }
+
+        function renderDailyStats() {
+            const data = childrenData[currentChild];
+            if (!data || !data.dateData) {
+                document.getElementById('dailyStats').innerHTML = '<h2>📅 Статистика по дням</h2><div class="no-data">Нет данных</div>';
+                return;
+            }
+
+            const dates = Object.keys(data.dateData).sort().reverse();
+            
+            let html = '<h2>📅 Статистика по дням</h2><table><thead><tr><th>Дата</th><th>День недели</th><th>Выполнено дел</th><th>Баллы</th><th>Коэффициент</th><th>К выплате</th></tr></thead><tbody>';
+
+            dates.forEach(dateStr => {
+                const dateData = data.dateData[dateStr];
+                if (!dateData || !dateData.chores) return;
+
+                const dayOfWeek = getDayOfWeek(dateStr);
+                let earned = 0;
+                let total = 0;
+                let completed = 0;
+
+                dateData.chores.forEach(chore => {
+                    total += chore.points;
+                    if (chore.completed || chore.completedToday) {
+                        earned += chore.points;
+                        completed++;
+                    }
+                });
+
+                const coefficient = calculateCoefficient(dateData);
+                const toPay = Math.round(earned * coefficient);
+
+                html += `
+                    <tr>
+                        <td>${formatDate(dateStr)}</td>
+                        <td>${daysOfWeek[dayOfWeek]}</td>
+                        <td>${completed}/${dateData.chores.length}</td>
+                        <td class="points-cell">${earned}/${total}</td>
+                        <td class="coefficient-cell ${getCoefficientClass(coefficient)}">${coefficient.toFixed(1)}x</td>
+                        <td class="points-cell">${toPay} ₸</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('dailyStats').innerHTML = html;
+        }
+
+        function renderWeeklyStats() {
+            const data = childrenData[currentChild];
+            if (!data || !data.dateData) {
+                document.getElementById('weeklyStats').innerHTML = '<h2>📊 Статистика по неделям</h2><div class="no-data">Нет данных</div>';
+                return;
+            }
+
+            const weeks = {};
+            
+            Object.keys(data.dateData).forEach(dateStr => {
+                const date = new Date(dateStr);
+                const year = date.getFullYear();
+                const weekNum = getWeekNumber(date);
+                const weekKey = `${year}-W${weekNum}`;
+
+                if (!weeks[weekKey]) {
+                    weeks[weekKey] = {
+                        dates: [],
+                        earned: 0,
+                        total: 0,
+                        coefficientSum: 0,
+                        days: 0
+                    };
+                }
+
+                const dateData = data.dateData[dateStr];
+                if (dateData && dateData.chores) {
+                    weeks[weekKey].dates.push(dateStr);
+                    weeks[weekKey].days++;
+
+                    dateData.chores.forEach(chore => {
+                        weeks[weekKey].total += chore.points;
+                        if (chore.completed || chore.completedToday) {
+                            weeks[weekKey].earned += chore.points;
+                        }
+                    });
+
+                    weeks[weekKey].coefficientSum += calculateCoefficient(dateData);
+                }
+            });
+
+            const weekKeys = Object.keys(weeks).sort().reverse();
+            
+            let html = '<h2>📊 Статистика по неделям</h2><table><thead><tr><th>Неделя</th><th>Период</th><th>Дней</th><th>Баллы</th><th>Средний коэффициент</th><th>К выплате</th></tr></thead><tbody>';
+
+            weekKeys.forEach(weekKey => {
+                const week = weeks[weekKey];
+                const avgCoefficient = week.days > 0 ? week.coefficientSum / 7 : 1.0; // Делим на 7 дней недели
+                const toPay = Math.round(week.earned * avgCoefficient);
+
+                const dates = week.dates.sort();
+                const startDate = formatDate(dates[0]);
+                const endDate = formatDate(dates[dates.length - 1]);
+
+                html += `
+                    <tr>
+                        <td class="week-header">${weekKey}</td>
+                        <td>${startDate} - ${endDate}</td>
+                        <td>${week.days}</td>
+                        <td class="points-cell">${week.earned}/${week.total}</td>
+                        <td class="coefficient-cell ${getCoefficientClass(avgCoefficient)}">${avgCoefficient.toFixed(2)}x</td>
+                        <td class="points-cell">${toPay} ₸</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('weeklyStats').innerHTML = html;
+        }
+
+        function renderMonthlyStats() {
+            const data = childrenData[currentChild];
+            if (!data || !data.dateData) {
+                document.getElementById('monthlyStats').innerHTML = '<h2>📈 Статистика по месяцам</h2><div class="no-data">Нет данных</div>';
+                return;
+            }
+
+            const months = {};
+            
+            Object.keys(data.dateData).forEach(dateStr => {
+                const date = new Date(dateStr);
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+                if (!months[monthKey]) {
+                    months[monthKey] = {
+                        earned: 0,
+                        total: 0,
+                        coefficientSum: 0,
+                        days: 0
+                    };
+                }
+
+                const dateData = data.dateData[dateStr];
+                if (dateData && dateData.chores) {
+                    months[monthKey].days++;
+
+                    dateData.chores.forEach(chore => {
+                        months[monthKey].total += chore.points;
+                        if (chore.completed || chore.completedToday) {
+                            months[monthKey].earned += chore.points;
+                        }
+                    });
+
+                    months[monthKey].coefficientSum += calculateCoefficient(dateData);
+                }
+            });
+
+            const monthKeys = Object.keys(months).sort().reverse();
+            
+            let html = '<h2>📈 Статистика по месяцам</h2><table><thead><tr><th>Месяц</th><th>Дней</th><th>Баллы</th><th>Средний коэффициент</th><th>К выплате</th></tr></thead><tbody>';
+
+            monthKeys.forEach(monthKey => {
+                const month = months[monthKey];
+                const avgCoefficient = month.days > 0 ? month.coefficientSum / month.days : 1.0;
+                const toPay = Math.round(month.earned * avgCoefficient);
+
+                const [year, monthNum] = monthKey.split('-');
+                const monthName = monthNames[parseInt(monthNum) - 1];
+
+                html += `
+                    <tr>
+                        <td class="month-header">${monthName} ${year}</td>
+                        <td>${month.days}</td>
+                        <td class="points-cell">${month.earned}/${month.total}</td>
+                        <td class="coefficient-cell ${getCoefficientClass(avgCoefficient)}">${avgCoefficient.toFixed(2)}x</td>
+                        <td class="points-cell">${toPay} ₸</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('monthlyStats').innerHTML = html;
+        }
+
+        function renderStats() {
+            renderSummary();
+            renderDailyStats();
+            renderWeeklyStats();
+            renderMonthlyStats();
+        }
+
+        async function loadData() {
+            const data = await loadFromFirebase('childrenData');
+            if (data) {
+                childrenData = data;
+            }
+
+            const paymentsData = await loadFromFirebase('payments');
+            if (paymentsData) {
+                payments = paymentsData;
+            }
+
+            renderStats();
+        }
+
+        // Инициализация
+        initChildSelector();
+        selectPeriod('daily');
+        loadData();
+    </script>
+</body>
+</html>
