@@ -1229,7 +1229,24 @@
                 btn.className = 'day-btn' + (isToday ? ' active' : '');
                 
                 const displayDate = formatDate(dateObj);
-                btn.innerHTML = `${day}<br><span style="font-size: 0.8em; opacity: 0.8;">${displayDate}</span>`;
+                
+                // Подсчитываем баллы для этого дня
+                const dayData = childrenData[currentChild]?.dateData?.[dateStr];
+                let earnedPoints = 0;
+                let totalPoints = 0;
+                
+                if (dayData && dayData.chores) {
+                    dayData.chores.forEach(chore => {
+                        totalPoints += chore.points;
+                        if (chore.completed || chore.completedToday) {
+                            earnedPoints += chore.points;
+                        }
+                    });
+                }
+                
+                const pointsDisplay = totalPoints > 0 ? `<div style="font-size: 0.7em; opacity: 0.9; margin-top: 2px;">${earnedPoints}/${totalPoints}</div>` : '';
+                
+                btn.innerHTML = `${day}<br><span style="font-size: 0.8em; opacity: 0.8;">${displayDate}</span>${pointsDisplay}`;
                 
                 btn.onclick = () => selectDate(dateStr, index);
                 selector.appendChild(btn);
@@ -1248,6 +1265,35 @@
             updateStats();
         }
 
+        function updateDayButtons() {
+            const buttons = document.querySelectorAll('.day-btn');
+            buttons.forEach((btn, index) => {
+                if (index >= currentWeekDates.length) return;
+                
+                const dateObj = currentWeekDates[index];
+                const dateStr = getDateString(dateObj);
+                const displayDate = formatDate(dateObj);
+                
+                // Подсчитываем баллы для этого дня
+                const dayData = childrenData[currentChild]?.dateData?.[dateStr];
+                let earnedPoints = 0;
+                let totalPoints = 0;
+                
+                if (dayData && dayData.chores) {
+                    dayData.chores.forEach(chore => {
+                        totalPoints += chore.points;
+                        if (chore.completed || chore.completedToday) {
+                            earnedPoints += chore.points;
+                        }
+                    });
+                }
+                
+                const pointsDisplay = totalPoints > 0 ? `<div style="font-size: 0.7em; opacity: 0.9; margin-top: 2px;">${earnedPoints}/${totalPoints}</div>` : '';
+                
+                btn.innerHTML = `${daysShort[index]}<br><span style="font-size: 0.8em; opacity: 0.8;">${displayDate}</span>${pointsDisplay}`;
+            });
+        }
+
         function initChildSelector() {
             const selector = document.getElementById('childSelector');
             children.forEach((child, index) => {
@@ -1264,6 +1310,7 @@
             document.querySelectorAll('.child-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.textContent === child);
             });
+            updateDayButtons();
             renderChores();
             updateStats();
         }
@@ -1343,6 +1390,7 @@
                 await saveToFirebase('childrenData', childrenData);
                 renderChores();
                 updateStats();
+                updateDayButtons();
                 showCelebration();
             }
         }
@@ -1362,6 +1410,7 @@
                 await saveToFirebase('childrenData', childrenData);
                 renderChores();
                 updateStats();
+                updateDayButtons();
             }
         }
 
