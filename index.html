@@ -872,14 +872,17 @@
 
     <div class="celebration" id="celebration"></div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <!-- Firebase SDK - Modular Version -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getDatabase, ref, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+        
+        // Делаем доступными глобально для совместимости
+        window.firebaseModules = { initializeApp, getDatabase, ref, set, get, remove };
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
-    <script>
-<!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script>
         // ============================================
         // FIREBASE КОНФИГУРАЦИЯ
@@ -899,7 +902,7 @@
         // Проверка конфигурации
         let database = null;
         let isFirebaseConfigured = false;
-        
+
         try {
             if (firebaseConfig.apiKey) {
                 firebase.initializeApp(firebaseConfig);
@@ -912,7 +915,9 @@
         } catch (error) {
             console.error('Firebase ошибка:', error);
             updateFirebaseStatus('disconnected', '💾 Работает локально (без синхронизации)');
+            // Не показываем уведомление о настройке, так как работает локально
         }
+
         function updateFirebaseStatus(status, text) {
             const statusEl = document.getElementById('firebaseStatus');
             statusEl.className = 'firebase-status ' + status;
@@ -1678,40 +1683,19 @@
         // ============================================
         // ЗАПУСК ПРИЛОЖЕНИЯ
         // ============================================
-async function startApp() {
-    checkAuthStatus();
-    initDaySelector();
-    initChildSelector();
-    
-    // ВАЖНО: Сначала загружаем данные, потом инициализируем
-    try {
-        // Загружаем мастер-список дел
-        const savedChores = await loadFromFirebase('masterChoresList');
-        if (savedChores && savedChores.length > 0) {
-            masterChoresList = savedChores;
-            console.log('Loaded chores:', masterChoresList.length);
+        async function startApp() {
+            checkAuthStatus(); // Проверяем авторизацию
+            initDaySelector(); // Инициализируем селектор дней (это также устанавливает currentWeekDates)
+            initChildSelector();
+            await initData();
+        }
+
+        // Запуск после загрузки DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startApp);
         } else {
-            // Создаём дефолтные дела
-            masterChoresList = [...defaultChores];
-            await saveToFirebase('masterChoresList', masterChoresList);
-            console.log('Created default chores');
+            startApp();
         }
-        
-        // Загружаем данные детей
-        const savedChildren = await loadFromFirebase('childrenData');
-        if (savedChildren) {
-            childrenData = savedChildren;
-            console.log('Loaded children data:', Object.keys(childrenData));
-        }
-        
-        // Теперь инициализируем (создаст данные только если их нет)
-        await initData();
-        
-        console.log('App started successfully!');
-    } catch (error) {
-        console.error('Startup error:', error);
-    }
-}
     </script>
 </body>
 </html>
