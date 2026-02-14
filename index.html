@@ -877,24 +877,29 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
     <script>
+<!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script>
         // ============================================
         // FIREBASE КОНФИГУРАЦИЯ
         // ============================================
         // ЗАМЕНИТЕ ЭТУ КОНФИГУРАЦИЮ НА СВОЮ ИЗ FIREBASE CONSOLE
-const firebaseConfig = {
-    apiKey: "AIzaSyDgxJ6mRbT1jgt9jXYVaQ6Qtc6gUX_AeqE",
-    authDomain: "chores-tracker-a88de.firebaseapp.com",
-    databaseURL: "https://chores-tracker-a88de-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "chores-tracker-a88de",
-    storageBucket: "chores-tracker-a88de.firebasestorage.app",
-    messagingSenderId: "951210208706",
-    appId: "1:951210208706:web:b17a52b75f172bb4b6fa5b",
-    measurementId: "G-KWWXBBESY7"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyDgxJ6mRbT1jgt9jXYVaQ6Qtc6gUX_AeqE",
+            authDomain: "chores-tracker-a88de.firebaseapp.com",
+            databaseURL: "https://chores-tracker-a88de-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "chores-tracker-a88de",
+            storageBucket: "chores-tracker-a88de.firebasestorage.app",
+            messagingSenderId: "951210208706",
+            appId: "1:951210208706:web:b17a52b75f172bb4b6fa5b",
+            measurementId: "G-KWWXBBESY7"
+        };
+
         // Проверка конфигурации
         let database = null;
         let isFirebaseConfigured = false;
-
+        
         try {
             if (firebaseConfig.apiKey) {
                 firebase.initializeApp(firebaseConfig);
@@ -907,9 +912,7 @@ const firebaseConfig = {
         } catch (error) {
             console.error('Firebase ошибка:', error);
             updateFirebaseStatus('disconnected', '💾 Работает локально (без синхронизации)');
-            // Не показываем уведомление о настройке, так как работает локально
         }
-
         function updateFirebaseStatus(status, text) {
             const statusEl = document.getElementById('firebaseStatus');
             statusEl.className = 'firebase-status ' + status;
