@@ -1737,6 +1737,7 @@
             initDaySelector(); // Инициализируем селектор дней (это также устанавливает currentWeekDates)
             initChildSelector();
             await initData();
+            updateDayButtons(); // Обновляем кнопки дней с баллами
         }
 
         // Запуск после загрузки DOM
