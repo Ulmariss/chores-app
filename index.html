@@ -1675,19 +1675,40 @@
         // ============================================
         // ЗАПУСК ПРИЛОЖЕНИЯ
         // ============================================
-        async function startApp() {
-            checkAuthStatus(); // Проверяем авторизацию
-            initDaySelector(); // Инициализируем селектор дней (это также устанавливает currentWeekDates)
-            initChildSelector();
-            await initData();
-        }
-
-        // Запуск после загрузки DOM
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', startApp);
+async function startApp() {
+    checkAuthStatus();
+    initDaySelector();
+    initChildSelector();
+    
+    // ВАЖНО: Сначала загружаем данные, потом инициализируем
+    try {
+        // Загружаем мастер-список дел
+        const savedChores = await loadFromFirebase('masterChoresList');
+        if (savedChores && savedChores.length > 0) {
+            masterChoresList = savedChores;
+            console.log('Loaded chores:', masterChoresList.length);
         } else {
-            startApp();
+            // Создаём дефолтные дела
+            masterChoresList = [...defaultChores];
+            await saveToFirebase('masterChoresList', masterChoresList);
+            console.log('Created default chores');
         }
+        
+        // Загружаем данные детей
+        const savedChildren = await loadFromFirebase('childrenData');
+        if (savedChildren) {
+            childrenData = savedChildren;
+            console.log('Loaded children data:', Object.keys(childrenData));
+        }
+        
+        // Теперь инициализируем (создаст данные только если их нет)
+        await initData();
+        
+        console.log('App started successfully!');
+    } catch (error) {
+        console.error('Startup error:', error);
+    }
+}
     </script>
 </body>
 </html>
